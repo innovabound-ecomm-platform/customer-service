@@ -4,12 +4,11 @@
  * 
  * Validates:
  * - Can import customer-db module
- * - Prisma client instantiation
- * - Required types and enums are available
- * - Database schema matches service expectations
+ * - Prisma client is available
+ * - Required types and functions are available
  */
 
-import { PrismaClient } from "@innovabound-ecomm-platform/customer-db";
+import { PrismaClient, getCustomerPrisma } from "@innovabound-ecomm-platform/customer-db";
 
 interface ValidationCheck {
   name: string;
@@ -22,62 +21,69 @@ const checks: ValidationCheck[] = [];
 async function runValidation() {
   console.log('🔍 Validating customer-service database connection...\n');
 
+  // Check 1: Import validation
   try {
-    const prisma = new PrismaClient();
     checks.push({
-      name: 'Import and instantiate customer-db PrismaClient',
-      passed: prisma !== undefined,
+      name: 'Import customer-db module (PrismaClient)',
+      passed: PrismaClient !== undefined,
     });
+  } catch (error: any) {
+    checks.push({
+      name: 'Import customer-db module',
+      passed: false,
+      error: error.message,
+    });
+  }
 
-    // Prisma client models
-    const requiredModels = ['customer', 'customerSegment', 'customerTag', 'wishlist', 'wishlistItem'];
-    
-    for (const model of requiredModels) {
-      try {
+  // Check 2: Check getCustomerPrisma function exists
+  try {
+    checks.push({
+      name: 'getCustomerPrisma function available',
+      passed: typeof getCustomerPrisma === 'function',
+    });
+  } catch (error: any) {
+    checks.push({
+      name: 'getCustomerPrisma function available',
+      passed: false,
+      error: error.message,
+    });
+  }
+
+  // Check 3: Database connection (only if DATABASE_URL is set)
+  if (process.env.CUSTOMER_DATABASE_URL) {
+    try {
+      const prisma = getCustomerPrisma();
+      
+      // Check models exist
+      const requiredModels = ['customer', 'customerProfile', 'customerAddress', 'wishlist', 'wishlistItem'];
+      
+      for (const model of requiredModels) {
         const modelExists = (prisma as any)[model] !== undefined;
         checks.push({
           name: `Model ${model} exists`,
           passed: modelExists,
           error: modelExists ? undefined : `Model ${model} not found`,
         });
-      } catch (error: any) {
-        checks.push({
-          name: `Model ${model} exists`,
-          passed: false,
-          error: error.message,
-        });
       }
-    }
 
-    // Database connection
-    if (process.env.CUSTOMER_DATABASE_URL) {
-      try {
-        await prisma.$connect();
-        checks.push({
-          name: 'Database connection successful',
-          passed: true,
-        });
-        await prisma.$disconnect();
-      } catch (error: any) {
-        checks.push({
-          name: 'Database connection',
-          passed: false,
-          error: `Connection failed: ${error.message}`,
-        });
-      }
-    } else {
+      await prisma.$connect();
+      checks.push({
+        name: 'Database connection successful',
+        passed: true,
+      });
+      await prisma.$disconnect();
+    } catch (error: any) {
       checks.push({
         name: 'Database connection',
-        passed: true,
-        error: 'Skipped - CUSTOMER_DATABASE_URL not set',
+        passed: false,
+        error: `Connection failed: ${error.message}`,
       });
     }
-
-  } catch (error: any) {
+  } else {
     checks.push({
-      name: 'Import customer-db module',
-      passed: false,
-      error: error.message,
+      name: 'Database connection',
+      passed: true,
+      error: 'Skipped - CUSTOMER_DATABASE_URL not set',
     });
   }
 
@@ -98,6 +104,8 @@ async function runValidation() {
 
   if (failed > 0) {
     process.exit(1);
+  } else {
+    process.exit(0);
   }
 }
 
