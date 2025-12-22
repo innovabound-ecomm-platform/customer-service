@@ -7,6 +7,9 @@ import wishlistRouter from "./routes/wishlist.route";
 import preferencesRouter from "./routes/preferences.route";
 import gdprRouter from "./routes/gdpr.route";
 import segmentRouter from "./routes/segment.route";
+import historyRouter from "./routes/history.route";
+import consentRouter from "./routes/consent.route";
+import notesRouter from "./routes/notes.route";
 
 const app = express();
 
@@ -36,6 +39,9 @@ app.use("/wishlists", wishlistRouter);
 app.use("/preferences", preferencesRouter);
 app.use("/gdpr", gdprRouter);
 app.use("/segments", segmentRouter);
+app.use("/history", historyRouter);
+app.use("/consent", consentRouter);
+app.use("/notes", notesRouter);
 
 // Error handler
 app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
