@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { PrismaClient } from "@innovabound-ecomm-platform/customer-db";
+import { getCustomerPrisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
 import { updatePreferencesSchema, updateConsentSchema } from "../schemas/customer.schema";
 
 const router = Router();
-const prisma = new PrismaClient();
+const prisma = getCustomerPrisma();
 
 /**
  * GET /preferences

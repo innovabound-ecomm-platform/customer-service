@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { PrismaClient, Prisma } from "@innovabound-ecomm-platform/customer-db";
+import { getCustomerPrisma, Prisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, requirePermission, AuthenticatedRequest } from "../middleware/auth";
 import { createSegmentSchema, updateSegmentSchema } from "../schemas/customer.schema";
 
 const router = Router();
-const prisma = new PrismaClient();
+const prisma = getCustomerPrisma();
 
 /**
  * GET /segments
@@ -76,7 +76,7 @@ router.get(
   requirePermission("segments:read"),
   async (req: AuthenticatedRequest, res) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id!;
 
       const segment = await prisma.customerSegment.findFirst({
         where: {
@@ -167,7 +167,7 @@ router.put(
   requirePermission("segments:write"),
   async (req: AuthenticatedRequest, res) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id!;
       const adminId = req.user!.id;
       const validation = updateSegmentSchema.safeParse(req.body);
       
@@ -218,7 +218,7 @@ router.delete(
   requirePermission("segments:delete"),
   async (req: AuthenticatedRequest, res) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id!;
 
       await prisma.$transaction([
         prisma.customerSegmentMember.deleteMany({
@@ -254,7 +254,7 @@ router.get(
   requirePermission("segments:read"),
   async (req: AuthenticatedRequest, res) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id!;
       const { page = "1", limit = "50" } = req.query;
 
       const pageNum = parseInt(page as string, 10);
@@ -305,7 +305,7 @@ router.post(
   requirePermission("segments:write"),
   async (req: AuthenticatedRequest, res) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id!;
       const adminId = req.user!.id;
       const { customerIds } = req.body;
 
@@ -360,7 +360,8 @@ router.delete(
   requirePermission("segments:write"),
   async (req: AuthenticatedRequest, res) => {
     try {
-      const { id, customerId } = req.params;
+      const id = req.params.id!;
+      const customerId = req.params.customerId!;
 
       const deleted = await prisma.customerSegmentMember.deleteMany({
         where: {
@@ -398,7 +399,7 @@ router.post(
   requirePermission("segments:write"),
   async (req: AuthenticatedRequest, res) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id!;
 
       const segment = await prisma.customerSegment.findUnique({
         where: { id: parseInt(id, 10) },

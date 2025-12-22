@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { PrismaClient } from "@innovabound-ecomm-platform/customer-db";
+import { getCustomerPrisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, requirePermission, AuthenticatedRequest } from "../middleware/auth";
 import { dataExportRequestSchema, dataDeletionRequestSchema } from "../schemas/customer.schema";
 
 const router = Router();
-const prisma = new PrismaClient();
+const prisma = getCustomerPrisma();
 
 // ============================================
 // DATA EXPORT (GDPR Right to Access)

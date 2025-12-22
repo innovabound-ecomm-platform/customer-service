@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { PrismaClient } from "@innovabound-ecomm-platform/customer-db";
+import { getCustomerPrisma } from "@innovabound-ecomm-platform/customer-db";
 import { v4 as uuidv4 } from "uuid";
 import { requireAuth, optionalAuth, AuthenticatedRequest } from "../middleware/auth";
 import { 
@@ -9,7 +9,7 @@ import {
 } from "../schemas/customer.schema";
 
 const router = Router();
-const prisma = new PrismaClient();
+const prisma = getCustomerPrisma();
 
 /**
  * GET /wishlists
@@ -51,7 +51,7 @@ router.get("/", requireAuth, async (req: AuthenticatedRequest, res) => {
  */
 router.get("/:id", optionalAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id!;
     const userId = req.user?.id;
 
     const wishlist = await prisma.wishlist.findFirst({
@@ -148,7 +148,7 @@ router.post("/", requireAuth, async (req: AuthenticatedRequest, res) => {
  */
 router.put("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id!;
     const userId = req.user!.id;
     const validation = updateWishlistSchema.safeParse(req.body);
     
@@ -217,7 +217,7 @@ router.put("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
  */
 router.delete("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id!;
     const userId = req.user!.id;
 
     const existing = await prisma.wishlist.findFirst({
@@ -255,7 +255,7 @@ router.delete("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
  */
 router.post("/:id/items", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id!;
     const userId = req.user!.id;
     const validation = addWishlistItemSchema.safeParse(req.body);
     
@@ -280,7 +280,7 @@ router.post("/:id/items", requireAuth, async (req: AuthenticatedRequest, res) =>
         wishlistId_productId_variantId: {
           wishlistId: wishlist.id,
           productId: validation.data.productId,
-          variantId: validation.data.variantId || null,
+          variantId: validation.data.variantId ?? "",
         },
       },
       update: {
@@ -291,7 +291,6 @@ router.post("/:id/items", requireAuth, async (req: AuthenticatedRequest, res) =>
       create: {
         wishlistId: wishlist.id,
         ...validation.data,
-        variantId: validation.data.variantId || null,
         createdBy: userId,
       },
     });
@@ -309,7 +308,8 @@ router.post("/:id/items", requireAuth, async (req: AuthenticatedRequest, res) =>
  */
 router.delete("/:id/items/:itemId", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const { id, itemId } = req.params;
+    const id = req.params.id!;
+    const itemId = req.params.itemId!;
     const userId = req.user!.id;
 
     // Verify ownership
@@ -344,7 +344,8 @@ router.delete("/:id/items/:itemId", requireAuth, async (req: AuthenticatedReques
  */
 router.post("/:id/items/:itemId/move", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const { id, itemId } = req.params;
+    const id = req.params.id!;
+    const itemId = req.params.itemId!;
     const { targetWishlistId } = req.body;
     const userId = req.user!.id;
 

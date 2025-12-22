@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { PrismaClient } from "@innovabound-ecomm-platform/customer-db";
+import { getCustomerPrisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
 import { createAddressSchema, updateAddressSchema } from "../schemas/customer.schema";
 
 const router = Router();
-const prisma = new PrismaClient();
+const prisma = getCustomerPrisma();
 
 /**
  * GET /addresses
@@ -48,7 +48,7 @@ router.get("/", requireAuth, async (req: AuthenticatedRequest, res) => {
  */
 router.get("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id!;
     const userId = req.user!.id;
 
     const customer = await prisma.customer.findUnique({
@@ -157,7 +157,7 @@ router.post("/", requireAuth, async (req: AuthenticatedRequest, res) => {
  */
 router.put("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id!;
     const userId = req.user!.id;
     const validation = updateAddressSchema.safeParse(req.body);
     
@@ -242,7 +242,7 @@ router.put("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
  */
 router.delete("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id!;
     const userId = req.user!.id;
 
     const customer = await prisma.customer.findUnique({
@@ -290,7 +290,7 @@ router.delete("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
  */
 router.post("/:id/set-default-shipping", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id!;
     const userId = req.user!.id;
 
     const customer = await prisma.customer.findUnique({
@@ -330,7 +330,7 @@ router.post("/:id/set-default-shipping", requireAuth, async (req: AuthenticatedR
  */
 router.post("/:id/set-default-billing", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id!;
     const userId = req.user!.id;
 
     const customer = await prisma.customer.findUnique({

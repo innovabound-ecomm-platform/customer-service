@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { PrismaClient, Prisma } from "@innovabound-ecomm-platform/customer-db";
+import { getCustomerPrisma, Prisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, requirePermission, AuthenticatedRequest } from "../middleware/auth";
 import { 
   createCustomerSchema, 
@@ -9,7 +9,7 @@ import {
 } from "../schemas/customer.schema";
 
 const router = Router();
-const prisma = new PrismaClient();
+const prisma = getCustomerPrisma();
 
 // ============================================
 // PUBLIC/USER ROUTES
@@ -188,8 +188,9 @@ router.get(
         ];
       }
 
-      const orderBy: Prisma.CustomerOrderByWithRelationInput = {};
-      orderBy[sortBy as string] = sortOrder as "asc" | "desc";
+      const orderBy = {
+        [sortBy as string]: sortOrder as "asc" | "desc",
+      } as Prisma.CustomerOrderByWithRelationInput;
 
       const [customers, total] = await Promise.all([
         prisma.customer.findMany({
@@ -236,7 +237,7 @@ router.get(
   requirePermission("customers:read"),
   async (req: AuthenticatedRequest, res) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id!;
 
       const customer = await prisma.customer.findFirst({
         where: {
@@ -336,7 +337,7 @@ router.put(
   requirePermission("customers:write"),
   async (req: AuthenticatedRequest, res) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id!;
       const adminId = req.user!.id;
       const validation = updateCustomerSchema.safeParse(req.body);
       
@@ -373,7 +374,7 @@ router.delete(
   requirePermission("customers:delete"),
   async (req: AuthenticatedRequest, res) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id!;
 
       await prisma.customer.delete({
         where: { id: parseInt(id, 10) },
@@ -404,7 +405,7 @@ router.get(
   requirePermission("customers:read"),
   async (req: AuthenticatedRequest, res) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id!;
       const { page = "1", limit = "20" } = req.query;
 
       const pageNum = parseInt(page as string, 10);
@@ -448,7 +449,7 @@ router.post(
   requirePermission("customers:write"),
   async (req: AuthenticatedRequest, res) => {
     try {
-      const { id } = req.params;
+      const id = req.params.id!;
       const adminId = req.user!.id;
       const validation = createNoteSchema.safeParse(req.body);
       
@@ -483,7 +484,7 @@ router.delete(
   requirePermission("customers:write"),
   async (req: AuthenticatedRequest, res) => {
     try {
-      const { noteId } = req.params;
+      const noteId = req.params.noteId!;
 
       await prisma.customerNote.delete({
         where: { id: parseInt(noteId, 10) },
