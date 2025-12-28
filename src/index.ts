@@ -72,7 +72,7 @@ app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
-const PORT = process.env.PORT || 3008;
+const PORT = process.env.PORT || 3005;
 
 const start = async () => {
   try {
