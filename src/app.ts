@@ -21,6 +21,7 @@ import segmentRouter from "./routes/segment/index.js";
 import historyRouter from "./routes/history.route.js";
 import consentRouter from "./routes/consent.route.js";
 import notesRouter from "./routes/notes.route.js";
+import statsRouter from "./routes/stats.route.js";
 
 export function createApp(): Application {
   const app: Application = express();
@@ -145,6 +146,7 @@ export function createApp(): Application {
 
   // Mount routes
   app.use("/health", healthRouter);
+  app.use("/stats", statsRouter);
   app.use("/customers", customerRouter);
   app.use("/addresses", addressRouter);
   app.use("/wishlists", wishlistRouter);
