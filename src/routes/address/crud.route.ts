@@ -1,14 +1,30 @@
 import { Router } from "express";
+import type { Router as RouterType } from "express";
 import { getCustomerPrisma } from "@innovabound-ecomm-platform/customer-db";
-import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
-import { createAddressSchema, updateAddressSchema } from "../schemas/customer.schema";
+import { requireAuth, AuthenticatedRequest } from "../../middleware/auth.js";
+import { createAddressSchema, updateAddressSchema } from "../../schemas/customer.schema.js";
 
-const router: Router = Router();
+const router: RouterType = Router();
 const prisma = getCustomerPrisma();
 
 /**
- * GET /addresses
- * Get current user's addresses
+ * @openapi
+ * /addresses:
+ *   get:
+ *     summary: Get my addresses
+ *     description: Get all addresses for the current user
+ *     tags:
+ *       - Addresses
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: List of addresses
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Failed to fetch addresses
  */
 router.get("/", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
@@ -43,8 +59,32 @@ router.get("/", requireAuth, async (req: AuthenticatedRequest, res) => {
 });
 
 /**
- * GET /addresses/:id
- * Get a specific address
+ * @openapi
+ * /addresses/{id}:
+ *   get:
+ *     summary: Get address
+ *     description: Get a specific address by ID or UUID
+ *     tags:
+ *       - Addresses
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Address ID or UUID
+ *     responses:
+ *       200:
+ *         description: Address details
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Address not found
+ *       500:
+ *         description: Failed to fetch address
  */
 router.get("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
@@ -83,8 +123,53 @@ router.get("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
 });
 
 /**
- * POST /addresses
- * Create a new address
+ * @openapi
+ * /addresses:
+ *   post:
+ *     summary: Create address
+ *     description: Create a new address for the current user
+ *     tags:
+ *       - Addresses
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - address1
+ *               - city
+ *               - country
+ *               - zip
+ *             properties:
+ *               address1:
+ *                 type: string
+ *               address2:
+ *                 type: string
+ *               city:
+ *                 type: string
+ *               state:
+ *                 type: string
+ *               country:
+ *                 type: string
+ *               zip:
+ *                 type: string
+ *               isDefaultShipping:
+ *                 type: boolean
+ *               isDefaultBilling:
+ *                 type: boolean
+ *     responses:
+ *       201:
+ *         description: Address created successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Failed to create address
  */
 router.post("/", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
@@ -152,8 +237,57 @@ router.post("/", requireAuth, async (req: AuthenticatedRequest, res) => {
 });
 
 /**
- * PUT /addresses/:id
- * Update an address
+ * @openapi
+ * /addresses/{id}:
+ *   put:
+ *     summary: Update address
+ *     description: Update an existing address by ID
+ *     tags:
+ *       - Addresses
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Address ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               address1:
+ *                 type: string
+ *               address2:
+ *                 type: string
+ *               city:
+ *                 type: string
+ *               state:
+ *                 type: string
+ *               country:
+ *                 type: string
+ *               zip:
+ *                 type: string
+ *               isDefaultShipping:
+ *                 type: boolean
+ *               isDefaultBilling:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Address updated successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Address not found
+ *       500:
+ *         description: Failed to update address
  */
 router.put("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
@@ -237,8 +371,32 @@ router.put("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
 });
 
 /**
- * DELETE /addresses/:id
- * Soft delete an address
+ * @openapi
+ * /addresses/{id}:
+ *   delete:
+ *     summary: Delete address
+ *     description: Soft delete an address by ID
+ *     tags:
+ *       - Addresses
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Address ID
+ *     responses:
+ *       200:
+ *         description: Address deleted successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Address not found
+ *       500:
+ *         description: Failed to delete address
  */
 router.delete("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
@@ -281,85 +439,6 @@ router.delete("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
   } catch (error) {
     console.error("Error deleting address:", error);
     return res.status(500).json({ error: "Failed to delete address" });
-  }
-});
-
-/**
- * POST /addresses/:id/set-default-shipping
- * Set address as default shipping
- */
-router.post("/:id/set-default-shipping", requireAuth, async (req: AuthenticatedRequest, res) => {
-  try {
-    const id = req.params.id!;
-    const userId = req.user!.id;
-
-    const customer = await prisma.customer.findUnique({
-      where: { userId },
-      select: { id: true },
-    });
-
-    if (!customer) {
-      return res.status(404).json({ error: "Address not found" });
-    }
-
-    // Unset current default and set new one
-    await prisma.$transaction([
-      prisma.customerAddress.updateMany({
-        where: { customerId: customer.id, isDefaultShipping: true },
-        data: { isDefaultShipping: false },
-      }),
-      prisma.customerAddress.update({
-        where: { id: parseInt(id, 10) },
-        data: { isDefaultShipping: true, updatedBy: userId },
-      }),
-    ]);
-
-    return res.status(200).json({ 
-      success: true, 
-      message: "Default shipping address updated" 
-    });
-  } catch (error) {
-    console.error("Error setting default shipping:", error);
-    return res.status(500).json({ error: "Failed to set default shipping" });
-  }
-});
-
-/**
- * POST /addresses/:id/set-default-billing
- * Set address as default billing
- */
-router.post("/:id/set-default-billing", requireAuth, async (req: AuthenticatedRequest, res) => {
-  try {
-    const id = req.params.id!;
-    const userId = req.user!.id;
-
-    const customer = await prisma.customer.findUnique({
-      where: { userId },
-      select: { id: true },
-    });
-
-    if (!customer) {
-      return res.status(404).json({ error: "Address not found" });
-    }
-
-    await prisma.$transaction([
-      prisma.customerAddress.updateMany({
-        where: { customerId: customer.id, isDefaultBilling: true },
-        data: { isDefaultBilling: false },
-      }),
-      prisma.customerAddress.update({
-        where: { id: parseInt(id, 10) },
-        data: { isDefaultBilling: true, updatedBy: userId },
-      }),
-    ]);
-
-    return res.status(200).json({ 
-      success: true, 
-      message: "Default billing address updated" 
-    });
-  } catch (error) {
-    console.error("Error setting default billing:", error);
-    return res.status(500).json({ error: "Failed to set default billing" });
   }
 });
 

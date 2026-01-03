@@ -7,8 +7,23 @@ const router: Router = Router();
 const prisma = getCustomerPrisma();
 
 /**
- * GET /preferences
- * Get current user's preferences
+ * @openapi
+ * /preferences:
+ *   get:
+ *     summary: Get my preferences
+ *     description: Get the current user's preferences
+ *     tags:
+ *       - Preferences
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: User preferences
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Failed to fetch preferences
  */
 router.get("/", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
@@ -36,8 +51,38 @@ router.get("/", requireAuth, async (req: AuthenticatedRequest, res) => {
 });
 
 /**
- * PUT /preferences
- * Update current user's preferences
+ * @openapi
+ * /preferences:
+ *   put:
+ *     summary: Update preferences
+ *     description: Update the current user's notification and communication preferences
+ *     tags:
+ *       - Preferences
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               marketingEmailsEnabled:
+ *                 type: boolean
+ *               orderUpdatesEnabled:
+ *                 type: boolean
+ *               newsletterEnabled:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Preferences updated successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Failed to update preferences
  */
 router.put("/", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
@@ -73,8 +118,23 @@ router.put("/", requireAuth, async (req: AuthenticatedRequest, res) => {
 // ============================================
 
 /**
- * GET /preferences/consent
- * Get current user's consent settings
+ * @openapi
+ * /preferences/consent:
+ *   get:
+ *     summary: Get consent settings
+ *     description: Get the current user's consent settings for all channels
+ *     tags:
+ *       - Preferences
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: List of consent settings
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Failed to fetch consents
  */
 router.get("/consent", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
@@ -101,8 +161,44 @@ router.get("/consent", requireAuth, async (req: AuthenticatedRequest, res) => {
 });
 
 /**
- * PUT /preferences/consent
- * Update consent for a channel
+ * @openapi
+ * /preferences/consent:
+ *   put:
+ *     summary: Update consent
+ *     description: Update consent for a specific channel (email, SMS, etc.)
+ *     tags:
+ *       - Preferences
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - channel
+ *               - granted
+ *             properties:
+ *               channel:
+ *                 type: string
+ *                 enum: [EMAIL, SMS, PUSH, PHONE]
+ *               granted:
+ *                 type: boolean
+ *               legalBasis:
+ *                 type: string
+ *               source:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Consent updated successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Failed to update consent
  */
 router.put("/consent", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
@@ -200,8 +296,25 @@ router.put("/consent", requireAuth, async (req: AuthenticatedRequest, res) => {
 });
 
 /**
- * POST /preferences/consent/withdraw-all
- * Withdraw all marketing consents
+ * @openapi
+ * /preferences/consent/withdraw-all:
+ *   post:
+ *     summary: Withdraw all consents
+ *     description: Withdraw all marketing consents for the current user
+ *     tags:
+ *       - Preferences
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: All consents withdrawn successfully
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Customer not found
+ *       500:
+ *         description: Failed to withdraw consents
  */
 router.post("/consent/withdraw-all", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {

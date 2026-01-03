@@ -10,8 +10,39 @@ const prisma = getCustomerPrisma();
 // ============================================
 
 /**
- * GET /notes/customer/:customerId
- * Get notes for a customer
+ * @openapi
+ * /notes/customer/{customerId}:
+ *   get:
+ *     summary: Get customer notes
+ *     description: Get all notes for a specific customer
+ *     tags:
+ *       - Notes
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: customerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Customer ID
+ *       - in: query
+ *         name: includeInternal
+ *         schema:
+ *           type: string
+ *           default: "true"
+ *     responses:
+ *       200:
+ *         description: List of notes
+ *       400:
+ *         description: customerId is required
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       500:
+ *         description: Failed to fetch notes
  */
 router.get("/customer/:customerId", requirePermission("customers:read"), async (req: AuthenticatedRequest, res) => {
   try {
@@ -42,8 +73,50 @@ router.get("/customer/:customerId", requirePermission("customers:read"), async (
 });
 
 /**
- * POST /notes/customer/:customerId
- * Add a note to a customer
+ * @openapi
+ * /notes/customer/{customerId}:
+ *   post:
+ *     summary: Add note to customer
+ *     description: Add a new note to a customer
+ *     tags:
+ *       - Notes
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: customerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Customer ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - note
+ *             properties:
+ *               note:
+ *                 type: string
+ *               isInternal:
+ *                 type: boolean
+ *                 default: true
+ *     responses:
+ *       201:
+ *         description: Note created successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Customer not found
+ *       500:
+ *         description: Failed to create note
  */
 router.post("/customer/:customerId", requirePermission("customers:write"), async (req: AuthenticatedRequest, res) => {
   try {
@@ -84,8 +157,47 @@ router.post("/customer/:customerId", requirePermission("customers:write"), async
 });
 
 /**
- * PUT /notes/:noteId
- * Update a note
+ * @openapi
+ * /notes/{noteId}:
+ *   put:
+ *     summary: Update note
+ *     description: Update a customer note
+ *     tags:
+ *       - Notes
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: noteId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Note ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               note:
+ *                 type: string
+ *               isInternal:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Note updated successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Note not found
+ *       500:
+ *         description: Failed to update note
  */
 router.put("/:noteId", requirePermission("customers:write"), async (req: AuthenticatedRequest, res) => {
   try {
@@ -122,8 +234,36 @@ router.put("/:noteId", requirePermission("customers:write"), async (req: Authent
 });
 
 /**
- * DELETE /notes/:noteId
- * Delete a note
+ * @openapi
+ * /notes/{noteId}:
+ *   delete:
+ *     summary: Delete note
+ *     description: Delete a customer note
+ *     tags:
+ *       - Notes
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: noteId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Note ID
+ *     responses:
+ *       200:
+ *         description: Note deleted successfully
+ *       400:
+ *         description: noteId is required
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Note not found
+ *       500:
+ *         description: Failed to delete note
  */
 router.delete("/:noteId", requirePermission("customers:delete"), async (req: AuthenticatedRequest, res) => {
   try {
@@ -148,8 +288,49 @@ router.delete("/:noteId", requirePermission("customers:delete"), async (req: Aut
 });
 
 /**
- * GET /notes/search
- * Search notes across customers
+ * @openapi
+ * /notes/search:
+ *   get:
+ *     summary: Search notes
+ *     description: Search notes across all customers
+ *     tags:
+ *       - Notes
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         description: Search query
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *       - in: query
+ *         name: authorId
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: isInternal
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Search results
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       500:
+ *         description: Failed to search notes
  */
 router.get("/search", requirePermission("customers:read"), async (req: AuthenticatedRequest, res) => {
   try {

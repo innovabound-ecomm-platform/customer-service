@@ -1,14 +1,56 @@
-import { Router } from "express";
-import { getCustomerPrisma, Prisma } from "@innovabound-ecomm-platform/customer-db";
-import { requireAuth, requirePermission, AuthenticatedRequest } from "../middleware/auth";
-import { createSegmentSchema, updateSegmentSchema } from "../schemas/customer.schema";
+/**
+ * Segment CRUD Routes
+ * Basic segment management operations
+ */
 
-const router: Router = Router();
+import { Router } from "express";
+import type { Router as RouterType } from "express";
+import { getCustomerPrisma, Prisma } from "@innovabound-ecomm-platform/customer-db";
+import { requireAuth, requirePermission, AuthenticatedRequest } from "../../middleware/auth.js";
+import { createSegmentSchema, updateSegmentSchema } from "../../schemas/customer.schema.js";
+
+const router: RouterType = Router();
 const prisma = getCustomerPrisma();
 
 /**
- * GET /segments
- * List all customer segments
+ * @openapi
+ * /segments:
+ *   get:
+ *     summary: List customer segments
+ *     description: Get a paginated list of all customer segments
+ *     tags:
+ *       - Segments
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: segmentType
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of segments
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       500:
+ *         description: Failed to fetch segments
  */
 router.get(
   "/",
@@ -37,7 +79,7 @@ router.get(
       }
 
       if (segmentType) {
-        where.segmentType = segmentType as any;
+        where.segmentType = segmentType as Prisma.EnumSegmentTypeFilter;
       }
 
       const [segments, total] = await Promise.all([
@@ -67,8 +109,34 @@ router.get(
 );
 
 /**
- * GET /segments/:id
- * Get segment by ID
+ * @openapi
+ * /segments/{id}:
+ *   get:
+ *     summary: Get segment by ID
+ *     description: Get segment details by ID, UUID, or slug
+ *     tags:
+ *       - Segments
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Segment ID, UUID, or slug
+ *     responses:
+ *       200:
+ *         description: Segment details
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Segment not found
+ *       500:
+ *         description: Failed to fetch segment
  */
 router.get(
   "/:id",
@@ -110,8 +178,47 @@ router.get(
 );
 
 /**
- * POST /segments
- * Create a new segment
+ * @openapi
+ * /segments:
+ *   post:
+ *     summary: Create new segment
+ *     description: Create a new customer segment
+ *     tags:
+ *       - Segments
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *               slug:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               segmentType:
+ *                 type: string
+ *                 enum: [MANUAL, AUTOMATIC]
+ *               rules:
+ *                 type: object
+ *     responses:
+ *       201:
+ *         description: Segment created successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       500:
+ *         description: Failed to create segment
  */
 router.post(
   "/",
@@ -158,8 +265,51 @@ router.post(
 );
 
 /**
- * PUT /segments/:id
- * Update a segment
+ * @openapi
+ * /segments/{id}:
+ *   put:
+ *     summary: Update segment
+ *     description: Update a customer segment
+ *     tags:
+ *       - Segments
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Segment ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               slug:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               rules:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Segment updated successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Segment not found
+ *       500:
+ *         description: Failed to update segment
  */
 router.put(
   "/:id",
@@ -209,8 +359,34 @@ router.put(
 );
 
 /**
- * DELETE /segments/:id
- * Delete a segment
+ * @openapi
+ * /segments/{id}:
+ *   delete:
+ *     summary: Delete segment
+ *     description: Delete a customer segment and all its members
+ *     tags:
+ *       - Segments
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Segment ID
+ *     responses:
+ *       200:
+ *         description: Segment deleted successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Segment not found
+ *       500:
+ *         description: Failed to delete segment
  */
 router.delete(
   "/:id",
@@ -236,193 +412,6 @@ router.delete(
     } catch (error) {
       console.error("Error deleting segment:", error);
       return res.status(500).json({ error: "Failed to delete segment" });
-    }
-  }
-);
-
-// ============================================
-// SEGMENT MEMBERS
-// ============================================
-
-/**
- * GET /segments/:id/members
- * Get segment members
- */
-router.get(
-  "/:id/members",
-  requireAuth,
-  requirePermission("segments:read"),
-  async (req: AuthenticatedRequest, res) => {
-    try {
-      const id = req.params.id!;
-      const { page = "1", limit = "50" } = req.query;
-
-      const pageNum = parseInt(page as string, 10);
-      const limitNum = Math.min(parseInt(limit as string, 10), 100);
-
-      const [members, total] = await Promise.all([
-        prisma.customerSegmentMember.findMany({
-          where: { segmentId: parseInt(id, 10) },
-          orderBy: { joinedAt: "desc" },
-          skip: (pageNum - 1) * limitNum,
-          take: limitNum,
-          include: {
-            customer: {
-              include: {
-                profile: true,
-              },
-            },
-          },
-        }),
-        prisma.customerSegmentMember.count({
-          where: { segmentId: parseInt(id, 10) },
-        }),
-      ]);
-
-      return res.status(200).json({
-        data: members,
-        pagination: {
-          page: pageNum,
-          limit: limitNum,
-          total,
-          totalPages: Math.ceil(total / limitNum),
-        },
-      });
-    } catch (error) {
-      console.error("Error fetching segment members:", error);
-      return res.status(500).json({ error: "Failed to fetch members" });
-    }
-  }
-);
-
-/**
- * POST /segments/:id/members
- * Add customers to segment
- */
-router.post(
-  "/:id/members",
-  requireAuth,
-  requirePermission("segments:write"),
-  async (req: AuthenticatedRequest, res) => {
-    try {
-      const id = req.params.id!;
-      const adminId = req.user!.id;
-      const { customerIds } = req.body;
-
-      if (!Array.isArray(customerIds) || customerIds.length === 0) {
-        return res.status(400).json({ error: "customerIds array is required" });
-      }
-
-      // Get customers with their userIds
-      const customers = await prisma.customer.findMany({
-        where: { id: { in: customerIds } },
-        select: { id: true, userId: true },
-      });
-
-      const result = await prisma.customerSegmentMember.createMany({
-        data: customers.map(c => ({
-          segmentId: parseInt(id, 10),
-          customerId: c.id,
-          userId: c.userId,
-          addedManually: true,
-          actorUserId: adminId,
-          actorType: "ADMIN" as const,
-          createdBy: adminId,
-        })),
-        skipDuplicates: true,
-      });
-
-      // Update member count
-      await prisma.customerSegment.update({
-        where: { id: parseInt(id, 10) },
-        data: { memberCount: { increment: result.count } },
-      });
-
-      return res.status(200).json({
-        success: true,
-        added: result.count,
-        message: `${result.count} customer(s) added to segment`,
-      });
-    } catch (error) {
-      console.error("Error adding segment members:", error);
-      return res.status(500).json({ error: "Failed to add members" });
-    }
-  }
-);
-
-/**
- * DELETE /segments/:id/members/:customerId
- * Remove customer from segment
- */
-router.delete(
-  "/:id/members/:customerId",
-  requireAuth,
-  requirePermission("segments:write"),
-  async (req: AuthenticatedRequest, res) => {
-    try {
-      const id = req.params.id!;
-      const customerId = req.params.customerId!;
-
-      const deleted = await prisma.customerSegmentMember.deleteMany({
-        where: {
-          segmentId: parseInt(id, 10),
-          customerId: parseInt(customerId, 10),
-        },
-      });
-
-      if (deleted.count > 0) {
-        // Update member count
-        await prisma.customerSegment.update({
-          where: { id: parseInt(id, 10) },
-          data: { memberCount: { decrement: 1 } },
-        });
-      }
-
-      return res.status(200).json({
-        success: true,
-        message: "Customer removed from segment",
-      });
-    } catch (error) {
-      console.error("Error removing segment member:", error);
-      return res.status(500).json({ error: "Failed to remove member" });
-    }
-  }
-);
-
-/**
- * POST /segments/:id/refresh
- * Refresh automatic segment membership
- */
-router.post(
-  "/:id/refresh",
-  requireAuth,
-  requirePermission("segments:write"),
-  async (req: AuthenticatedRequest, res) => {
-    try {
-      const id = req.params.id!;
-
-      const segment = await prisma.customerSegment.findUnique({
-        where: { id: parseInt(id, 10) },
-      });
-
-      if (!segment) {
-        return res.status(404).json({ error: "Segment not found" });
-      }
-
-      if (segment.segmentType === "MANUAL") {
-        return res.status(400).json({ error: "Cannot refresh manual segments" });
-      }
-
-      // TODO: Implement rule-based membership evaluation
-      // This would involve parsing segment.rules and querying matching customers
-
-      return res.status(200).json({
-        success: true,
-        message: "Segment refresh queued",
-      });
-    } catch (error) {
-      console.error("Error refreshing segment:", error);
-      return res.status(500).json({ error: "Failed to refresh segment" });
     }
   }
 );
