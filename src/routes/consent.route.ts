@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { getCustomerPrisma, Prisma, ConsentChannel } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, requirePermission, AuthenticatedRequest } from "../middleware/auth";
 
-const router = Router();
+const router: Router = Router();
 const prisma = getCustomerPrisma();
 
 const VALID_CHANNELS: ConsentChannel[] = ["EMAIL", "SMS", "PUSH", "PHONE"];

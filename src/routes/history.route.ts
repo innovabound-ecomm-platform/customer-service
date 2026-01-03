@@ -2,7 +2,7 @@ import { Router, Response } from "express";
 import { getCustomerPrisma, Prisma, ActivityType } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, optionalAuth, AuthenticatedRequest } from "../middleware/auth";
 
-const router = Router();
+const router: Router = Router();
 const prisma = getCustomerPrisma();
 
 const VALID_ACTIVITY_TYPES: ActivityType[] = [

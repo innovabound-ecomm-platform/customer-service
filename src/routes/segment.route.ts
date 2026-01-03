@@ -3,7 +3,7 @@ import { getCustomerPrisma, Prisma } from "@innovabound-ecomm-platform/customer-
 import { requireAuth, requirePermission, AuthenticatedRequest } from "../middleware/auth";
 import { createSegmentSchema, updateSegmentSchema } from "../schemas/customer.schema";
 
-const router = Router();
+const router: Router = Router();
 const prisma = getCustomerPrisma();
 
 /**

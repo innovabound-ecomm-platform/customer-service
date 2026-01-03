@@ -8,7 +8,7 @@ import {
   createNoteSchema 
 } from "../schemas/customer.schema";
 
-const router = Router();
+const router: Router = Router();
 const prisma = getCustomerPrisma();
 
 // ============================================

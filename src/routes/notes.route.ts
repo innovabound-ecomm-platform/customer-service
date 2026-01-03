@@ -2,7 +2,7 @@ import { Router } from "express";
 import { getCustomerPrisma, Prisma } from "@innovabound-ecomm-platform/customer-db";
 import { requirePermission, AuthenticatedRequest } from "../middleware/auth";
 
-const router = Router();
+const router: Router = Router();
 const prisma = getCustomerPrisma();
 
 // ============================================
