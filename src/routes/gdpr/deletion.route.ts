@@ -8,6 +8,7 @@ import type { Router as RouterType } from "express";
 import { getCustomerPrisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, AuthenticatedRequest } from "../../middleware/auth.js";
 import { dataDeletionRequestSchema } from "../../schemas/customer.schema.js";
+import { getSiteId } from "../../utils/tenant.utils.js";
 
 const router: RouterType = Router();
 const prisma = getCustomerPrisma();
@@ -49,6 +50,7 @@ const prisma = getCustomerPrisma();
 router.post("/delete", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
     const userEmail = req.user!.email || "";
     const validation = dataDeletionRequestSchema.safeParse(req.body);
     
@@ -75,6 +77,8 @@ router.post("/delete", requireAuth, async (req: AuthenticatedRequest, res) => {
       where: { userId },
       select: { id: true },
     });
+
+    // Note: tenant verification is handled implicitly - customer belongs to authenticated user
 
     // GDPR: 30 days standard, can extend to 90 for complex requests
     const dueBy = new Date();

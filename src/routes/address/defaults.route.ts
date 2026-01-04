@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Router as RouterType } from "express";
 import { getCustomerPrisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, AuthenticatedRequest } from "../../middleware/auth.js";
+import { getSiteId } from "../../utils/tenant.utils.js";
 
 const router: RouterType = Router();
 const prisma = getCustomerPrisma();
@@ -38,13 +39,19 @@ router.post("/:id/set-default-shipping", requireAuth, async (req: AuthenticatedR
   try {
     const id = req.params.id!;
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
 
     const customer = await prisma.customer.findUnique({
       where: { userId },
-      select: { id: true },
     });
 
     if (!customer) {
+      return res.status(404).json({ error: "Address not found" });
+    }
+
+    // Verify tenant ownership if siteId is present
+    const customerSiteId = (customer as { siteId?: string | null }).siteId;
+    if (siteId && customerSiteId && customerSiteId !== siteId) {
       return res.status(404).json({ error: "Address not found" });
     }
 
@@ -102,13 +109,19 @@ router.post("/:id/set-default-billing", requireAuth, async (req: AuthenticatedRe
   try {
     const id = req.params.id!;
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
 
     const customer = await prisma.customer.findUnique({
       where: { userId },
-      select: { id: true },
     });
 
     if (!customer) {
+      return res.status(404).json({ error: "Address not found" });
+    }
+
+    // Verify tenant ownership if siteId is present
+    const customerSiteId = (customer as { siteId?: string | null }).siteId;
+    if (siteId && customerSiteId && customerSiteId !== siteId) {
       return res.status(404).json({ error: "Address not found" });
     }
 

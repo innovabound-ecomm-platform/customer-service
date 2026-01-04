@@ -3,6 +3,7 @@ import type { Router as RouterType } from "express";
 import { getCustomerPrisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, AuthenticatedRequest } from "../../middleware/auth.js";
 import { addWishlistItemSchema } from "../../schemas/customer.schema.js";
+import { wishlistWhere, withSiteId, getSiteId, requireSiteId } from "../../utils/tenant.utils.js";
 
 const router: RouterType = Router();
 const prisma = getCustomerPrisma();
@@ -29,9 +30,10 @@ const prisma = getCustomerPrisma();
 router.get("/default", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
 
     let wishlist = await prisma.wishlist.findFirst({
-      where: { userId, isDefault: true },
+      where: wishlistWhere(siteId, { userId, isDefault: true }, { strict: false }),
       include: {
         items: {
           orderBy: { addedAt: "desc" },
@@ -45,7 +47,12 @@ router.get("/default", requireAuth, async (req: AuthenticatedRequest, res) => {
     // Create default wishlist if doesn't exist
     if (!wishlist) {
       wishlist = await prisma.wishlist.create({
-        data: {
+        data: siteId ? withSiteId({
+          userId,
+          name: "My Wishlist",
+          isDefault: true,
+          createdBy: userId,
+        }, siteId) : {
           userId,
           name: "My Wishlist",
           isDefault: true,
@@ -123,6 +130,7 @@ router.post("/:id/items", requireAuth, async (req: AuthenticatedRequest, res) =>
   try {
     const id = req.params.id!;
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
     const validation = addWishlistItemSchema.safeParse(req.body);
     
     if (!validation.success) {
@@ -131,10 +139,10 @@ router.post("/:id/items", requireAuth, async (req: AuthenticatedRequest, res) =>
 
     // Verify ownership
     const wishlist = await prisma.wishlist.findFirst({
-      where: {
+      where: wishlistWhere(siteId, {
         id: parseInt(id, 10),
         userId,
-      },
+      }, { strict: false }),
     });
 
     if (!wishlist) {
@@ -207,13 +215,14 @@ router.delete("/:id/items/:itemId", requireAuth, async (req: AuthenticatedReques
     const id = req.params.id!;
     const itemId = req.params.itemId!;
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
 
     // Verify ownership
     const wishlist = await prisma.wishlist.findFirst({
-      where: {
+      where: wishlistWhere(siteId, {
         id: parseInt(id, 10),
         userId,
-      },
+      }, { strict: false }),
     });
 
     if (!wishlist) {
@@ -287,6 +296,7 @@ router.post("/:id/items/:itemId/move", requireAuth, async (req: AuthenticatedReq
     const itemId = req.params.itemId!;
     const { targetWishlistId } = req.body;
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
 
     if (!targetWishlistId) {
       return res.status(400).json({ error: "targetWishlistId is required" });
@@ -295,10 +305,10 @@ router.post("/:id/items/:itemId/move", requireAuth, async (req: AuthenticatedReq
     // Verify ownership of both wishlists
     const [sourceWishlist, targetWishlist] = await Promise.all([
       prisma.wishlist.findFirst({
-        where: { id: parseInt(id, 10), userId },
+        where: wishlistWhere(siteId, { id: parseInt(id, 10), userId }, { strict: false }),
       }),
       prisma.wishlist.findFirst({
-        where: { id: parseInt(targetWishlistId, 10), userId },
+        where: wishlistWhere(siteId, { id: parseInt(targetWishlistId, 10), userId }, { strict: false }),
       }),
     ]);
 

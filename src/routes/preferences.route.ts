@@ -2,6 +2,7 @@ import { Router } from "express";
 import { getCustomerPrisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, AuthenticatedRequest } from "../middleware/auth";
 import { updatePreferencesSchema, updateConsentSchema } from "../schemas/customer.schema";
+import { withSiteId, getSiteId } from "../utils/tenant.utils.js";
 
 const router: Router = Router();
 const prisma = getCustomerPrisma();
@@ -139,6 +140,7 @@ router.put("/", requireAuth, async (req: AuthenticatedRequest, res) => {
 router.get("/consent", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
 
     const customer = await prisma.customer.findUnique({
       where: { userId },
@@ -148,6 +150,8 @@ router.get("/consent", requireAuth, async (req: AuthenticatedRequest, res) => {
     if (!customer) {
       return res.status(200).json({ data: [] });
     }
+
+    // Note: tenant verification is handled implicitly - customer belongs to authenticated user
 
     const consents = await prisma.customerConsent.findMany({
       where: { customerId: customer.id },
@@ -203,6 +207,7 @@ router.get("/consent", requireAuth, async (req: AuthenticatedRequest, res) => {
 router.put("/consent", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
     const validation = updateConsentSchema.safeParse(req.body);
     
     if (!validation.success) {
@@ -216,7 +221,11 @@ router.put("/consent", requireAuth, async (req: AuthenticatedRequest, res) => {
 
     if (!customer) {
       customer = await prisma.customer.create({
-        data: {
+        data: siteId ? withSiteId({
+          userId,
+          email: req.user!.email,
+          createdBy: userId,
+        }, siteId) : {
           userId,
           email: req.user!.email,
           createdBy: userId,

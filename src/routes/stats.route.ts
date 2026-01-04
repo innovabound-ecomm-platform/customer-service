@@ -7,6 +7,7 @@ import { Router, Response } from "express";
 import type { Router as RouterType } from "express";
 import { getCustomerPrisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, requirePermission, type AuthenticatedRequest } from "../middleware/auth.js";
+import { customerWhere, getSiteId } from "../utils/tenant.utils.js";
 
 const prisma = getCustomerPrisma();
 const router: RouterType = Router();
@@ -54,8 +55,9 @@ router.get(
   "/stats",
   requireAuth,
   requirePermission("customers:read"),
-  async (_req: AuthenticatedRequest, res: Response) => {
+  async (req: AuthenticatedRequest, res: Response) => {
     try {
+      const siteId = getSiteId(req);
       const now = new Date();
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const startOfWeek = new Date(startOfToday);
@@ -70,34 +72,36 @@ router.get(
         newCustomersThisMonth,
         customersWithOrders,
       ] = await Promise.all([
-        prisma.customer.count(),
+        prisma.customer.count({ where: customerWhere(siteId, {}, { strict: false }) }),
         prisma.customer.count({
-          where: { createdAt: { gte: startOfToday } },
+          where: customerWhere(siteId, { createdAt: { gte: startOfToday } }, { strict: false }),
         }),
         prisma.customer.count({
-          where: { createdAt: { gte: startOfWeek } },
+          where: customerWhere(siteId, { createdAt: { gte: startOfWeek } }, { strict: false }),
         }),
         prisma.customer.count({
-          where: { createdAt: { gte: startOfMonth } },
+          where: customerWhere(siteId, { createdAt: { gte: startOfMonth } }, { strict: false }),
         }),
         prisma.customer.count({
-          where: { totalOrders: { gt: 0 } },
+          where: customerWhere(siteId, { totalOrders: { gt: 0 } }, { strict: false }),
         }),
       ]);
 
       // Calculate average orders per customer
       const orderStats = await prisma.customer.aggregate({
+        where: customerWhere(siteId, {}, { strict: false }),
         _avg: { totalOrders: true },
         _sum: { totalOrders: true },
       });
 
       const averageOrdersPerCustomer = orderStats._avg.totalOrders || 0;
       const repeatCustomers = await prisma.customer.count({
-        where: { totalOrders: { gt: 1 } },
+        where: customerWhere(siteId, { totalOrders: { gt: 1 } }, { strict: false }),
       });
 
       // Calculate average lifetime value using totalSpent
       const lifetimeValueStats = await prisma.customer.aggregate({
+        where: customerWhere(siteId, {}, { strict: false }),
         _avg: { totalSpent: true },
       });
 
@@ -105,7 +109,7 @@ router.get(
       const ninetyDaysAgo = new Date();
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
       const activeCustomers = await prisma.customer.count({
-        where: { lastOrderAt: { gte: ninetyDaysAgo } },
+        where: customerWhere(siteId, { lastOrderAt: { gte: ninetyDaysAgo } }, { strict: false }),
       });
 
       res.json({

@@ -3,6 +3,7 @@ import type { Router as RouterType } from "express";
 import { getCustomerPrisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, AuthenticatedRequest } from "../../middleware/auth.js";
 import { createAddressSchema, updateAddressSchema } from "../../schemas/customer.schema.js";
+import { withSiteId, getSiteId } from "../../utils/tenant.utils.js";
 
 const router: RouterType = Router();
 const prisma = getCustomerPrisma();
@@ -174,6 +175,7 @@ router.get("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
 router.post("/", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
     const validation = createAddressSchema.safeParse(req.body);
     
     if (!validation.success) {
@@ -187,7 +189,11 @@ router.post("/", requireAuth, async (req: AuthenticatedRequest, res) => {
 
     if (!customer) {
       customer = await prisma.customer.create({
-        data: {
+        data: siteId ? withSiteId({
+          userId,
+          email: req.user!.email,
+          createdBy: userId,
+        }, siteId) : {
           userId,
           email: req.user!.email,
           createdBy: userId,

@@ -7,8 +7,12 @@ export interface AuthenticatedRequest extends Request {
     email?: string;
     roles?: string[];
     permissions?: string[];
+    siteId?: string;
+    siteSlug?: string;
   };
   userId?: string;
+  siteId?: string;
+  siteSlug?: string;
 }
 
 // JWT Configuration
@@ -35,6 +39,8 @@ interface TokenPayload extends JWTPayload {
   email: string;
   roles: string[];
   permissions: string[];
+  siteId?: string;
+  siteSlug?: string;
 }
 
 /**
@@ -45,6 +51,8 @@ async function verifyAccessToken(token: string): Promise<{
   email: string;
   roles: string[];
   permissions: string[];
+  siteId?: string;
+  siteSlug?: string;
 } | null> {
   try {
     const { payload } = await jwtVerify<TokenPayload>(token, getJWKS(), {
@@ -57,6 +65,8 @@ async function verifyAccessToken(token: string): Promise<{
       email: payload.email || "",
       roles: payload.roles || [],
       permissions: payload.permissions || [],
+      siteId: payload.siteId,
+      siteSlug: payload.siteSlug,
     };
   } catch (error) {
     if (error instanceof errors.JWTExpired) {
@@ -82,14 +92,20 @@ export const requireAuth = async (
   const userId = req.headers["x-user-id"] as string;
   const userEmail = req.headers["x-user-email"] as string;
   const userRoles = req.headers["x-user-roles"] as string;
+  const siteId = req.headers["x-tenant-id"] as string;
+  const siteSlug = req.headers["x-tenant-slug"] as string;
 
   if (userId) {
     req.user = {
       id: userId,
       email: userEmail,
       roles: userRoles ? userRoles.split(",") : [],
+      siteId: siteId || undefined,
+      siteSlug: siteSlug || undefined,
     };
     req.userId = userId;
+    req.siteId = siteId || undefined;
+    req.siteSlug = siteSlug || undefined;
     return next();
   }
 
@@ -103,8 +119,12 @@ export const requireAuth = async (
         email: payload.email,
         roles: payload.roles,
         permissions: payload.permissions,
+        siteId: payload.siteId,
+        siteSlug: payload.siteSlug,
       };
       req.userId = payload.sub;
+      req.siteId = payload.siteId;
+      req.siteSlug = payload.siteSlug;
       return next();
     }
   }
@@ -120,8 +140,12 @@ export const requireAuth = async (
         email: payload.email,
         roles: payload.roles,
         permissions: payload.permissions,
+        siteId: payload.siteId,
+        siteSlug: payload.siteSlug,
       };
       req.userId = payload.sub;
+      req.siteId = payload.siteId;
+      req.siteSlug = payload.siteSlug;
       return next();
     }
   }
@@ -172,14 +196,20 @@ export const optionalAuth = async (
   const userId = req.headers["x-user-id"] as string;
   const userEmail = req.headers["x-user-email"] as string;
   const userRoles = req.headers["x-user-roles"] as string;
+  const siteId = req.headers["x-tenant-id"] as string;
+  const siteSlug = req.headers["x-tenant-slug"] as string;
 
   if (userId) {
     req.user = {
       id: userId,
       email: userEmail,
       roles: userRoles ? userRoles.split(",") : [],
+      siteId: siteId || undefined,
+      siteSlug: siteSlug || undefined,
     };
     req.userId = userId;
+    req.siteId = siteId || undefined;
+    req.siteSlug = siteSlug || undefined;
     return next();
   }
 
@@ -193,10 +223,32 @@ export const optionalAuth = async (
         email: payload.email,
         roles: payload.roles,
         permissions: payload.permissions,
+        siteId: payload.siteId,
+        siteSlug: payload.siteSlug,
       };
       req.userId = payload.sub;
+      req.siteId = payload.siteId;
+      req.siteSlug = payload.siteSlug;
     }
   }
 
+  next();
+};
+
+/**
+ * Middleware to require tenant context (siteId) - deny-by-default enforcement
+ * Use AFTER requireAuth to ensure tenant isolation
+ */
+export const requireTenant = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  if (!req.siteId) {
+    return res.status(400).json({ 
+      error: "Tenant context required",
+      message: "siteId must be provided via JWT or x-tenant-id header"
+    });
+  }
   next();
 };

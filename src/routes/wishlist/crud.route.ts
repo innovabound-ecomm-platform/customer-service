@@ -7,6 +7,7 @@ import {
   createWishlistSchema, 
   updateWishlistSchema 
 } from "../../schemas/customer.schema.js";
+import { wishlistWhere, withSiteId, getSiteId, requireSiteId } from "../../utils/tenant.utils.js";
 
 const router: RouterType = Router();
 const prisma = getCustomerPrisma();
@@ -33,9 +34,10 @@ const prisma = getCustomerPrisma();
 router.get("/", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
 
     const wishlists = await prisma.wishlist.findMany({
-      where: { userId },
+      where: wishlistWhere(siteId, { userId }, { strict: false }),
       orderBy: [
         { isDefault: "desc" },
         { createdAt: "desc" },
@@ -87,15 +89,16 @@ router.get("/:id", optionalAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const id = req.params.id!;
     const userId = req.user?.id;
+    const siteId = getSiteId(req);
 
     const wishlist = await prisma.wishlist.findFirst({
-      where: {
+      where: wishlistWhere(siteId, {
         OR: [
           { id: parseInt(id, 10) || 0 },
           { uuid: id },
           { shareToken: id },
         ],
-      },
+      }, { strict: false }),
       include: {
         items: {
           orderBy: { addedAt: "desc" },
@@ -168,6 +171,7 @@ router.get("/:id", optionalAuth, async (req: AuthenticatedRequest, res) => {
 router.post("/", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
+    const siteId = requireSiteId(req);
     const validation = createWishlistSchema.safeParse(req.body);
     
     if (!validation.success) {
@@ -179,20 +183,20 @@ router.post("/", requireAuth, async (req: AuthenticatedRequest, res) => {
     // If making this default, unset other defaults
     if (isDefault) {
       await prisma.wishlist.updateMany({
-        where: { userId, isDefault: true },
+        where: wishlistWhere(siteId, { userId, isDefault: true }),
         data: { isDefault: false },
       });
     }
 
     const wishlist = await prisma.wishlist.create({
-      data: {
+      data: withSiteId({
         userId,
         ...data,
         isDefault,
         visibility,
         shareToken: visibility !== "PRIVATE" ? uuidv4() : null,
         createdBy: userId,
-      },
+      }, siteId),
       include: {
         _count: {
           select: { items: true },
@@ -261,6 +265,7 @@ router.put("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const id = req.params.id!;
     const userId = req.user!.id;
+    const siteId = requireSiteId(req);
     const validation = updateWishlistSchema.safeParse(req.body);
     
     if (!validation.success) {
@@ -269,10 +274,10 @@ router.put("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
 
     // Verify ownership
     const existing = await prisma.wishlist.findFirst({
-      where: {
+      where: wishlistWhere(siteId, {
         id: parseInt(id, 10),
         userId,
-      },
+      }),
     });
 
     if (!existing) {
@@ -284,7 +289,7 @@ router.put("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
     // Handle default flag
     if (isDefault) {
       await prisma.wishlist.updateMany({
-        where: { userId, isDefault: true, id: { not: existing.id } },
+        where: wishlistWhere(siteId, { userId, isDefault: true, id: { not: existing.id } }),
         data: { isDefault: false },
       });
     }
@@ -354,12 +359,13 @@ router.delete("/:id", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const id = req.params.id!;
     const userId = req.user!.id;
+    const siteId = requireSiteId(req);
 
     const existing = await prisma.wishlist.findFirst({
-      where: {
+      where: wishlistWhere(siteId, {
         id: parseInt(id, 10),
         userId,
-      },
+      }),
     });
 
     if (!existing) {

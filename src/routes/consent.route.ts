@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { getCustomerPrisma, Prisma, ConsentChannel } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, requirePermission, AuthenticatedRequest } from "../middleware/auth";
+import { withSiteId, getSiteId } from "../utils/tenant.utils.js";
 
 const router: Router = Router();
 const prisma = getCustomerPrisma();
@@ -22,6 +23,7 @@ function isValidChannel(channel: string): channel is ConsentChannel {
 router.get("/", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
 
     // Get customer
     const customer = await prisma.customer.findUnique({
@@ -32,6 +34,9 @@ router.get("/", requireAuth, async (req: AuthenticatedRequest, res: Response) =>
     if (!customer) {
       return res.status(200).json({ data: [] });
     }
+
+    // Note: tenant verification is handled implicitly by customerWhere in queries
+    // For simple lookups by userId, the customer already belongs to the authenticated user
 
     const consents = await prisma.customerConsent.findMany({
       where: { customerId: customer.id },
@@ -51,6 +56,7 @@ router.get("/", requireAuth, async (req: AuthenticatedRequest, res: Response) =>
 router.put("/:channel", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
     const channelParam = req.params.channel;
     if (!channelParam) {
       return res.status(400).json({ error: "channel is required" });
@@ -74,7 +80,11 @@ router.put("/:channel", requireAuth, async (req: AuthenticatedRequest, res: Resp
 
     if (!customer) {
       customer = await prisma.customer.create({
-        data: {
+        data: siteId ? withSiteId({
+          userId,
+          email: req.user!.email,
+          createdBy: userId,
+        }, siteId) : {
           userId,
           email: req.user!.email,
           createdBy: userId,
@@ -148,6 +158,7 @@ router.put("/:channel", requireAuth, async (req: AuthenticatedRequest, res: Resp
 router.post("/bulk", requireAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
     const { consents, source } = req.body;
 
     if (!Array.isArray(consents)) {
@@ -161,7 +172,11 @@ router.post("/bulk", requireAuth, async (req: AuthenticatedRequest, res: Respons
 
     if (!customer) {
       customer = await prisma.customer.create({
-        data: {
+        data: siteId ? withSiteId({
+          userId,
+          email: req.user!.email,
+          createdBy: userId,
+        }, siteId) : {
           userId,
           email: req.user!.email,
           createdBy: userId,

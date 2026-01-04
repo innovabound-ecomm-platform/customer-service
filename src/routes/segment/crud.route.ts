@@ -8,6 +8,7 @@ import type { Router as RouterType } from "express";
 import { getCustomerPrisma, Prisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, requirePermission, AuthenticatedRequest } from "../../middleware/auth.js";
 import { createSegmentSchema, updateSegmentSchema } from "../../schemas/customer.schema.js";
+import { segmentWhere, withSiteId, getSiteId, requireSiteId } from "../../utils/tenant.utils.js";
 
 const router: RouterType = Router();
 const prisma = getCustomerPrisma();
@@ -58,6 +59,7 @@ router.get(
   requirePermission("segments:read"),
   async (req: AuthenticatedRequest, res) => {
     try {
+      const siteId = getSiteId(req);
       const { 
         page = "1", 
         limit = "50",
@@ -68,10 +70,10 @@ router.get(
       const pageNum = parseInt(page as string, 10);
       const limitNum = Math.min(parseInt(limit as string, 10), 100);
 
-      const where: Prisma.CustomerSegmentWhereInput = {};
+      const additionalWhere: Prisma.CustomerSegmentWhereInput = {};
 
       if (search) {
-        where.OR = [
+        additionalWhere.OR = [
           { name: { contains: search as string, mode: "insensitive" } },
           { slug: { contains: search as string, mode: "insensitive" } },
           { description: { contains: search as string, mode: "insensitive" } },
@@ -79,8 +81,10 @@ router.get(
       }
 
       if (segmentType) {
-        where.segmentType = segmentType as Prisma.EnumSegmentTypeFilter;
+        additionalWhere.segmentType = segmentType as Prisma.EnumSegmentTypeFilter;
       }
+
+      const where = segmentWhere(siteId, additionalWhere, { strict: false });
 
       const [segments, total] = await Promise.all([
         prisma.customerSegment.findMany({
@@ -144,16 +148,17 @@ router.get(
   requirePermission("segments:read"),
   async (req: AuthenticatedRequest, res) => {
     try {
+      const siteId = getSiteId(req);
       const id = req.params.id!;
 
       const segment = await prisma.customerSegment.findFirst({
-        where: {
+        where: segmentWhere(siteId, {
           OR: [
             { id: parseInt(id, 10) || 0 },
             { uuid: id },
             { slug: id },
           ],
-        },
+        }, { strict: false }),
         include: {
           _count: {
             select: { members: true },
@@ -226,6 +231,7 @@ router.post(
   requirePermission("segments:write"),
   async (req: AuthenticatedRequest, res) => {
     try {
+      const siteId = requireSiteId(req);
       const adminId = req.user!.id;
       const validation = createSegmentSchema.safeParse(req.body);
       
@@ -238,22 +244,22 @@ router.post(
       // Generate slug if not provided
       const segmentSlug = slug || name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-      // Check for unique slug
-      const existing = await prisma.customerSegment.findUnique({
-        where: { slug: segmentSlug },
+      // Check for unique slug within tenant
+      const existing = await prisma.customerSegment.findFirst({
+        where: segmentWhere(siteId, { slug: segmentSlug }),
       });
       if (existing) {
         return res.status(400).json({ error: "Segment with this slug already exists" });
       }
 
       const segment = await prisma.customerSegment.create({
-        data: {
+        data: withSiteId({
           name,
           slug: segmentSlug,
           ...data,
           rules: rules as Prisma.InputJsonValue,
           createdBy: adminId,
-        },
+        }, siteId),
       });
 
       return res.status(201).json(segment);
@@ -317,6 +323,7 @@ router.put(
   requirePermission("segments:write"),
   async (req: AuthenticatedRequest, res) => {
     try {
+      const siteId = requireSiteId(req);
       const id = req.params.id!;
       const adminId = req.user!.id;
       const validation = updateSegmentSchema.safeParse(req.body);
@@ -330,18 +337,26 @@ router.put(
       // Check slug uniqueness if changed
       if (slug) {
         const existing = await prisma.customerSegment.findFirst({
-          where: {
+          where: segmentWhere(siteId, {
             slug,
             id: { not: parseInt(id, 10) },
-          },
+          }),
         });
         if (existing) {
           return res.status(400).json({ error: "Segment with this slug already exists" });
         }
       }
 
+      const existingSegment = await prisma.customerSegment.findFirst({
+        where: segmentWhere(siteId, { id: parseInt(id, 10) }),
+      });
+
+      if (!existingSegment) {
+        return res.status(404).json({ error: "Segment not found" });
+      }
+
       const segment = await prisma.customerSegment.update({
-        where: { id: parseInt(id, 10) },
+        where: { id: existingSegment.id },
         data: {
           ...data,
           ...(slug && { slug }),
@@ -394,14 +409,23 @@ router.delete(
   requirePermission("segments:delete"),
   async (req: AuthenticatedRequest, res) => {
     try {
+      const siteId = requireSiteId(req);
       const id = req.params.id!;
+
+      const existingSegment = await prisma.customerSegment.findFirst({
+        where: segmentWhere(siteId, { id: parseInt(id, 10) }),
+      });
+
+      if (!existingSegment) {
+        return res.status(404).json({ error: "Segment not found" });
+      }
 
       await prisma.$transaction([
         prisma.customerSegmentMember.deleteMany({
-          where: { segmentId: parseInt(id, 10) },
+          where: { segmentId: existingSegment.id },
         }),
         prisma.customerSegment.delete({
-          where: { id: parseInt(id, 10) },
+          where: { id: existingSegment.id },
         }),
       ]);
 

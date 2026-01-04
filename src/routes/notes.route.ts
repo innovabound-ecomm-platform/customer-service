@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { getCustomerPrisma, Prisma } from "@innovabound-ecomm-platform/customer-db";
 import { requirePermission, AuthenticatedRequest } from "../middleware/auth";
+import { customerWhere, getSiteId } from "../utils/tenant.utils.js";
 
 const router: Router = Router();
 const prisma = getCustomerPrisma();
@@ -126,14 +127,17 @@ router.post("/customer/:customerId", requirePermission("customers:write"), async
     }
     const customerId = parseInt(customerIdParam, 10);
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
     const { note, isInternal = true } = req.body;
 
     if (!note || !note.trim()) {
       return res.status(400).json({ error: "note is required" });
     }
 
-    // Verify customer exists
-    const customer = await prisma.customer.findUnique({ where: { id: customerId } });
+    // Verify customer exists and belongs to tenant
+    const customer = await prisma.customer.findFirst({ 
+      where: customerWhere(siteId, { id: customerId }, { strict: false }) 
+    });
     if (!customer) {
       return res.status(404).json({ error: "Customer not found" });
     }

@@ -8,6 +8,7 @@ import type { Router as RouterType } from "express";
 import { getCustomerPrisma, Prisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, requirePermission, AuthenticatedRequest } from "../../middleware/auth.js";
 import { createCustomerSchema, updateCustomerSchema } from "../../schemas/customer.schema.js";
+import { customerWhere, withSiteId, getSiteId, requireSiteId } from "../../utils/tenant.utils.js";
 
 const router: RouterType = Router();
 const prisma = getCustomerPrisma();
@@ -65,6 +66,7 @@ router.get(
   requirePermission("customers:read"),
   async (req: AuthenticatedRequest, res) => {
     try {
+      const siteId = getSiteId(req);
       const { 
         page = "1", 
         limit = "50", 
@@ -76,16 +78,18 @@ router.get(
       const pageNum = parseInt(page as string, 10);
       const limitNum = Math.min(parseInt(limit as string, 10), 100);
 
-      const where: Prisma.CustomerWhereInput = {};
+      const additionalWhere: Prisma.CustomerWhereInput = {};
 
       if (search) {
-        where.OR = [
+        additionalWhere.OR = [
           { email: { contains: search as string, mode: "insensitive" } },
           { phone: { contains: search as string, mode: "insensitive" } },
           { profile: { firstName: { contains: search as string, mode: "insensitive" } } },
           { profile: { lastName: { contains: search as string, mode: "insensitive" } } },
         ];
       }
+
+      const where = customerWhere(siteId, additionalWhere, { strict: false });
 
       const orderBy = {
         [sortBy as string]: sortOrder as "asc" | "desc",
@@ -162,16 +166,17 @@ router.get(
   requirePermission("customers:read"),
   async (req: AuthenticatedRequest, res) => {
     try {
+      const siteId = getSiteId(req);
       const id = req.params.id!;
 
       const customer = await prisma.customer.findFirst({
-        where: {
+        where: customerWhere(siteId, {
           OR: [
             { id: parseInt(id, 10) || 0 },
             { uuid: id },
             { userId: id },
           ],
-        },
+        }, { strict: false }),
         include: {
           profile: true,
           preferences: true,
@@ -252,6 +257,7 @@ router.post(
   requirePermission("customers:write"),
   async (req: AuthenticatedRequest, res) => {
     try {
+      const siteId = requireSiteId(req);
       const adminId = req.user!.id;
       const validation = createCustomerSchema.safeParse(req.body);
       
@@ -262,7 +268,7 @@ router.post(
       const { profile, ...customerData } = validation.data;
 
       const customer = await prisma.customer.create({
-        data: {
+        data: withSiteId({
           ...customerData,
           createdBy: adminId,
           ...(profile && {
@@ -276,7 +282,7 @@ router.post(
               },
             },
           }),
-        },
+        }, siteId),
         include: {
           profile: true,
         },
@@ -344,6 +350,7 @@ router.put(
   requirePermission("customers:write"),
   async (req: AuthenticatedRequest, res) => {
     try {
+      const siteId = requireSiteId(req);
       const id = req.params.id!;
       const adminId = req.user!.id;
       const validation = updateCustomerSchema.safeParse(req.body);
@@ -352,8 +359,16 @@ router.put(
         return res.status(400).json({ error: validation.error.errors });
       }
 
-      const customer = await prisma.customer.update({
-        where: { id: parseInt(id, 10) },
+      const customer = await prisma.customer.findFirst({
+        where: customerWhere(siteId, { id: parseInt(id, 10) }),
+      });
+
+      if (!customer) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+
+      const updatedCustomer = await prisma.customer.update({
+        where: { id: customer.id },
         data: {
           ...validation.data,
           updatedBy: adminId,
@@ -363,7 +378,7 @@ router.put(
         },
       });
 
-      return res.status(200).json(customer);
+      return res.status(200).json(updatedCustomer);
     } catch (error) {
       console.error("Error updating customer:", error);
       return res.status(500).json({ error: "Failed to update customer" });
@@ -407,10 +422,19 @@ router.delete(
   requirePermission("customers:delete"),
   async (req: AuthenticatedRequest, res) => {
     try {
+      const siteId = requireSiteId(req);
       const id = req.params.id!;
 
+      const customer = await prisma.customer.findFirst({
+        where: customerWhere(siteId, { id: parseInt(id, 10) }),
+      });
+
+      if (!customer) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+
       await prisma.customer.delete({
-        where: { id: parseInt(id, 10) },
+        where: { id: customer.id },
       });
 
       return res.status(200).json({ 

@@ -8,6 +8,7 @@ import type { Router as RouterType } from "express";
 import { getCustomerPrisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, AuthenticatedRequest } from "../../middleware/auth.js";
 import { updateCustomerSchema, updateProfileSchema } from "../../schemas/customer.schema.js";
+import { withSiteId, getSiteId } from "../../utils/tenant.utils.js";
 
 const router: RouterType = Router();
 const prisma = getCustomerPrisma();
@@ -34,6 +35,7 @@ const prisma = getCustomerPrisma();
 router.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
 
     let customer = await prisma.customer.findUnique({
       where: { userId },
@@ -51,7 +53,11 @@ router.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
     // Auto-create customer record if doesn't exist
     if (!customer) {
       customer = await prisma.customer.create({
-        data: {
+        data: siteId ? withSiteId({
+          userId,
+          email: req.user!.email,
+          createdBy: userId,
+        }, siteId) : {
           userId,
           email: req.user!.email,
           createdBy: userId,
@@ -114,6 +120,7 @@ router.get("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
 router.put("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
     const validation = updateCustomerSchema.safeParse(req.body);
     
     if (!validation.success) {
@@ -126,7 +133,11 @@ router.put("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
         ...validation.data,
         updatedBy: userId,
       },
-      create: {
+      create: siteId ? withSiteId({
+        userId,
+        ...validation.data,
+        createdBy: userId,
+      }, siteId) : {
         userId,
         ...validation.data,
         createdBy: userId,
@@ -185,6 +196,7 @@ router.put("/me", requireAuth, async (req: AuthenticatedRequest, res) => {
 router.put("/me/profile", requireAuth, async (req: AuthenticatedRequest, res) => {
   try {
     const userId = req.user!.id;
+    const siteId = getSiteId(req);
     const validation = updateProfileSchema.safeParse(req.body);
     
     if (!validation.success) {
@@ -198,7 +210,11 @@ router.put("/me/profile", requireAuth, async (req: AuthenticatedRequest, res) =>
 
     if (!customer) {
       customer = await prisma.customer.create({
-        data: {
+        data: siteId ? withSiteId({
+          userId,
+          email: req.user!.email,
+          createdBy: userId,
+        }, siteId) : {
           userId,
           email: req.user!.email,
           createdBy: userId,

@@ -8,6 +8,7 @@ import type { Router as RouterType } from "express";
 import { getCustomerPrisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, requirePermission, AuthenticatedRequest } from "../../middleware/auth.js";
 import { createNoteSchema } from "../../schemas/customer.schema.js";
+import { customerWhere, getSiteId } from "../../utils/tenant.utils.js";
 
 const router: RouterType = Router();
 const prisma = getCustomerPrisma();
@@ -56,21 +57,31 @@ router.get(
   requirePermission("customers:read"),
   async (req: AuthenticatedRequest, res) => {
     try {
+      const siteId = getSiteId(req);
       const id = req.params.id!;
       const { page = "1", limit = "20" } = req.query;
 
       const pageNum = parseInt(page as string, 10);
       const limitNum = Math.min(parseInt(limit as string, 10), 50);
 
+      // First verify customer belongs to tenant
+      const customer = await prisma.customer.findFirst({
+        where: customerWhere(siteId, { id: parseInt(id, 10) }, { strict: false }),
+      });
+
+      if (!customer) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+
       const [notes, total] = await Promise.all([
         prisma.customerNote.findMany({
-          where: { customerId: parseInt(id, 10) },
+          where: { customerId: customer.id },
           orderBy: { createdAt: "desc" },
           skip: (pageNum - 1) * limitNum,
           take: limitNum,
         }),
         prisma.customerNote.count({
-          where: { customerId: parseInt(id, 10) },
+          where: { customerId: customer.id },
         }),
       ]);
 
@@ -141,6 +152,7 @@ router.post(
   requirePermission("customers:write"),
   async (req: AuthenticatedRequest, res) => {
     try {
+      const siteId = getSiteId(req);
       const id = req.params.id!;
       const adminId = req.user!.id;
       const validation = createNoteSchema.safeParse(req.body);
@@ -149,9 +161,18 @@ router.post(
         return res.status(400).json({ error: validation.error.errors });
       }
 
+      // Verify customer belongs to tenant
+      const customer = await prisma.customer.findFirst({
+        where: customerWhere(siteId, { id: parseInt(id, 10) }, { strict: false }),
+      });
+
+      if (!customer) {
+        return res.status(404).json({ error: "Customer not found" });
+      }
+
       const note = await prisma.customerNote.create({
         data: {
-          customerId: parseInt(id, 10),
+          customerId: customer.id,
           ...validation.data,
           authorId: adminId,
           createdBy: adminId,

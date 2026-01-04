@@ -32,6 +32,7 @@ router.get("/recently-viewed", requireAuth, async (req: AuthenticatedRequest, re
     const userId = req.user!.id;
     const { limit = "20" } = req.query;
 
+    // Note: RecentlyViewed model doesn't have siteId - tenant filtering not applicable
     const items = await prisma.recentlyViewed.findMany({
       where: { userId },
       orderBy: { lastViewedAt: "desc" },
@@ -64,6 +65,7 @@ router.post("/recently-viewed", optionalAuth, async (req: AuthenticatedRequest, 
     }
 
     // Upsert the recently viewed record
+    // Note: RecentlyViewed model doesn't have siteId - tenant filtering not applicable
     const whereClause = userId 
       ? { userId_productId: { userId, productId } }
       : { guestId_productId: { guestId: guestId!, productId } };
@@ -108,6 +110,7 @@ router.delete("/recently-viewed/:productId", requireAuth, async (req: Authentica
       return res.status(400).json({ error: "productId is required" });
     }
 
+    // Note: RecentlyViewed model doesn't have siteId - tenant filtering not applicable
     await prisma.recentlyViewed.deleteMany({
       where: { userId, productId },
     });
@@ -127,6 +130,7 @@ router.delete("/recently-viewed", requireAuth, async (req: AuthenticatedRequest,
   try {
     const userId = req.user!.id;
 
+    // Note: RecentlyViewed model doesn't have siteId - tenant filtering not applicable
     await prisma.recentlyViewed.deleteMany({
       where: { userId },
     });

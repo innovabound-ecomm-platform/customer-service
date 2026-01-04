@@ -7,6 +7,7 @@ import { Router } from "express";
 import type { Router as RouterType } from "express";
 import { getCustomerPrisma } from "@innovabound-ecomm-platform/customer-db";
 import { requireAuth, requirePermission, AuthenticatedRequest } from "../../middleware/auth.js";
+import { customerWhere, segmentWhere, getSiteId, requireSiteId } from "../../utils/tenant.utils.js";
 
 const router: RouterType = Router();
 const prisma = getCustomerPrisma();
@@ -145,6 +146,7 @@ router.post(
   requirePermission("segments:write"),
   async (req: AuthenticatedRequest, res) => {
     try {
+      const siteId = requireSiteId(req);
       const id = req.params.id!;
       const adminId = req.user!.id;
       const { customerIds } = req.body;
@@ -153,9 +155,9 @@ router.post(
         return res.status(400).json({ error: "customerIds array is required" });
       }
 
-      // Get customers with their userIds
+      // Get customers with their userIds (tenant-scoped)
       const customers = await prisma.customer.findMany({
-        where: { id: { in: customerIds } },
+        where: customerWhere(siteId, { id: { in: customerIds } }),
         select: { id: true, userId: true },
       });
 
@@ -173,10 +175,16 @@ router.post(
       });
 
       // Update member count
-      await prisma.customerSegment.update({
-        where: { id: parseInt(id, 10) },
-        data: { memberCount: { increment: result.count } },
+      const existingSegment = await prisma.customerSegment.findFirst({
+        where: segmentWhere(siteId, { id: parseInt(id, 10) }),
       });
+
+      if (existingSegment) {
+        await prisma.customerSegment.update({
+          where: { id: existingSegment.id },
+          data: { memberCount: { increment: result.count } },
+        });
+      }
 
       return res.status(200).json({
         success: true,
@@ -230,6 +238,7 @@ router.delete(
   requirePermission("segments:write"),
   async (req: AuthenticatedRequest, res) => {
     try {
+      const siteId = requireSiteId(req);
       const id = req.params.id!;
       const customerId = req.params.customerId!;
 
@@ -242,10 +251,16 @@ router.delete(
 
       if (deleted.count > 0) {
         // Update member count
-        await prisma.customerSegment.update({
-          where: { id: parseInt(id, 10) },
-          data: { memberCount: { decrement: 1 } },
+        const existingSegment = await prisma.customerSegment.findFirst({
+          where: segmentWhere(siteId, { id: parseInt(id, 10) }),
         });
+
+        if (existingSegment) {
+          await prisma.customerSegment.update({
+            where: { id: existingSegment.id },
+            data: { memberCount: { decrement: 1 } },
+          });
+        }
       }
 
       return res.status(200).json({
@@ -297,10 +312,11 @@ router.post(
   requirePermission("segments:write"),
   async (req: AuthenticatedRequest, res) => {
     try {
+      const siteId = getSiteId(req);
       const id = req.params.id!;
 
-      const segment = await prisma.customerSegment.findUnique({
-        where: { id: parseInt(id, 10) },
+      const segment = await prisma.customerSegment.findFirst({
+        where: segmentWhere(siteId, { id: parseInt(id, 10) }, { strict: false }),
       });
 
       if (!segment) {
